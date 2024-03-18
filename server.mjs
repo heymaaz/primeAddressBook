@@ -93,61 +93,77 @@ app.get('/' , (req, res) => {
     res.send('Hello World');
 }
 );
+
 // Get all address book entries
-app.get('/address-book', (req, res) => {
-    const query = 'SELECT * FROM address_book';
-    connection.query(query, (err, results) => {
-        if (err) {
-            console.error('Error retrieving address book entries: ', err);
-            res.status(500).send('Error retrieving address book entries');
-            return;
-        }
+app.get('/address-book', async (req, res) => {
+    try {
+        const [results] = await connection.query('SELECT * FROM address_book');
         res.status(200).json(results);
-    });
+    } catch (err) {
+        console.error('Error retrieving address book entries: ', err);
+        res.status(500).send('Error retrieving address book entries');
+    }
 });
+
 // Get a single address book entry
-app.get('/address-book/:id', (req, res) => {
+app.get('/address-book/:id', async (req, res) => {
     const id = req.params.id;
-    const query = 'SELECT * FROM address_book WHERE id = ?';
-    connection.query(query, [id], (err, results) => {
-        if (err) {
-            console.error('Error retrieving address book entry: ', err);
-            res.status(500).send('Error retrieving address book entry');
-            return;
+    try {
+        const [results] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
+        if (results.length > 0) {
+            res.status(200).json(results[0]);
+        } else {
+            res.status(404).send('Address book entry not found');
         }
-        res.status(200).json(results);
-    });
-}
-);
+    } catch (err) {
+        console.error('Error retrieving address book entry: ', err);
+        res.status(500).send('Error retrieving address book entry');
+    }
+});
 
 // Update an address book entry
-app.put('/address-book/:id', (req, res) => {
+app.put('/address-book/:id', contactValidationRules(), validate, async (req, res) => {
     const id = req.params.id;
     const { first_name, last_name, phone, email } = req.body;
 
-    const query = 'UPDATE address_book SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE id = ?';
-    connection.query(query, [first_name, last_name, phone, email, id], (err, result) => {
-        if (err) {
-            console.error('Error updating address book entry: ', err);
-            res.status(500).send('Error updating address book entry');
-            return;
+    try {
+        // Check if the contact exists
+        const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
+        if (existingContact.length === 0) {
+            // Not Found: Contact with this ID does not exist
+            return res.status(404).send('Address book entry not found');
         }
+
+        // Update the contact
+        const query = 'UPDATE address_book SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE id = ?';
+        await connection.query(query, [first_name, last_name, phone, email, id]);
+
         res.status(200).send('Address book entry updated successfully');
-    });
-});
+    } catch (err) {
+        console.error('Error updating address book entry: ', err);
+        res.status(500).send('Error updating address book entry');
+    }
+}
+);
 // Delete an address book entry
-app.delete('/address-book/:id', (req, res) => {
+app.delete('/address-book/:id', async (req, res) => {
     const id = req.params.id;
-    const query = 'DELETE FROM address_book WHERE id = ?';
-    connection.query(query, [id], (err, result) => {
-        if (err) {
-            console.error('Error deleting address book entry: ', err);
-            res.status(500).send('Error deleting address book entry');
-            return;
+    try {
+        // Check if the contact exists
+        const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
+        if (existingContact.length === 0) {
+            // Not Found: Contact with this ID does not exist
+            return res.status(404).send('Address book entry not found');
         }
+        const query = 'DELETE FROM address_book WHERE id = ?';
+        await connection.query(query, [id]);
         res.status(200).send('Address book entry deleted successfully');
-    });
-});
+    } catch (err) {
+        console.error('Error deleting address book entry: ', err);
+        res.status(500).send('Error deleting address book entry');
+    }
+}
+);
 
 // Start the server
 app.listen(port, () => {
