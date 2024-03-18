@@ -70,13 +70,12 @@ app.post('/address-book', contactValidationRules(), validate, async (req, res) =
     try {
         // Check for existing contact with the same email or phone number
         const existingContact = await connection.query(
-            'SELECT * FROM address_book WHERE email = ? OR phone = ?',
-            [email, phone]
+            'SELECT * FROM address_book WHERE email = ?',
+            [email]
         );
-        
-        if (existingContact.length > 0) {
+        if (existingContact[0].length > 0) {
             // Conflict: Contact with this email or phone already exists
-            return res.status(409).send('A contact with the same email or phone number already exists.');
+            return res.status(409).send('A contact with the same email already exists.');
         }
         
         // Insert new contact into the database
@@ -134,10 +133,19 @@ app.put('/address-book/:id', contactValidationRules(), validate, async (req, res
     try {
         // Check if the contact exists
         const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
-        if (existingContact.length === 0) {
+        if (existingContact[0].length === 0) {
             // Not Found: Contact with this ID does not exist
             return res.status(404).send('Address book entry not found');
         }
+        if(existingContact[0].email !== email){
+            // Check if a contact with the same email already exists
+            const [existingEmail] = await connection.query('SELECT * FROM address_book WHERE email = ?', [email]);
+            if (existingEmail.length > 0) {
+                // Conflict: Contact with this email already exists
+                return res.status(409).send('A contact with the same email already exists.');
+            }
+        }
+
         
         // Update the contact
         const query = 'UPDATE address_book SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE id = ?';
@@ -156,7 +164,7 @@ app.delete('/address-book/:id', async (req, res) => {
     try {
         // Check if the contact exists
         const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
-        if (existingContact.length === 0) {
+        if (existingContact[0].length === 0) {
             // Not Found: Contact with this ID does not exist
             return res.status(404).send('Address book entry not found');
         }
