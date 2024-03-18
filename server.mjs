@@ -1,44 +1,17 @@
 import express from 'express';
-import pkg from 'mysql2/promise';
 import { body, validationResult } from 'express-validator';
+import { Database } from './Database.mjs'; // Import the Database class
+import { ContactService } from './ContactService.mjs'; // Import the ContactService class
 
-
-// Create an Express application
 const app = express();
-
-// Middleware to parse JSON bodies
 app.use(express.json());
-
-// Middleware to parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));
 
-const port = 3000;
+const db = new Database();
+await db.connect();
+const contactService = new ContactService(db);
 
-// Create MySQL connection
-const connection = await pkg.createConnection({
-    host: 'localhost',
-    port: 3306,
-    user: 'root',
-    password: 'maazdubai',
-    database: 'address_book_db'
-});
-
-// Connect to MySQL server
-connection.connect((err) => {
-    if (err) {
-        console.error('Error connecting to MySQL server: ', err);
-        return;
-    }
-    console.log('Connected to MySQL server');
-});
-
-//log all the requests
-app.use((req, res, next) => {
-    //log the time in iso format
-    console.log(new Date().toISOString()+": "+req.method+" request at " + req.url);
-    next();
-});
-
+// Validation rules
 const contactValidationRules = () => {
     return [
         // Validate and sanitize the first_name field
@@ -55,6 +28,7 @@ const contactValidationRules = () => {
     ];
 };
 
+// Validation function
 const validate = (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -63,135 +37,90 @@ const validate = (req, res, next) => {
     next();
 };
 
+// Routes
+
+app.get('/', (req, res) => {
+    res.send('OK');
+}
+);
+
 // Create a new address book entry
 app.post('/address-book', contactValidationRules(), validate, async (req, res) => {
     const { first_name, last_name, phone, email } = req.body;
-    
     try {
-        // Check for existing contact with the same email or phone number
-        const existingContact = await connection.query(
-            'SELECT * FROM address_book WHERE email = ?',
-            [email]
-        );
-        if (existingContact[0].length > 0) {
-            // Conflict: Contact with this email or phone already exists
-            return res.status(409).send('A contact with the same email already exists.');
-        }
-        
-        // Insert new contact into the database
-        const query = 'INSERT INTO address_book (first_name, last_name, phone, email) VALUES (?, ?, ?, ?)';
-        await connection.query(query, [first_name, last_name, phone, email]);
-        
-        res.status(201).send('Address book entry created successfully');
-    } 
+        const result = await contactService.createContact(first_name, last_name, phone, email);
+        res.json(result);
+    }
     catch (err) {
-        console.error('Error creating address book entry: ', err);
-        res.status(500).send('Error creating address book entry');
+        res.status(500).json({ error: err.message });
     }
 });
-
-app.get('/' , (req, res) => {
-    res.send('Hello World');
-}
-);
 
 // Get all address book entries
 app.get('/address-book', async (req, res) => {
     try {
-        const [results] = await connection.query('SELECT * FROM address_book');
-        res.status(200).json(results);
-    } 
+        const result = await contactService.getAllContacts();
+        res.json(result);
+    }
     catch (err) {
-        console.error('Error retrieving address book entries: ', err);
-        res.status(500).send('Error retrieving address book entries');
+        res.status(500).json({ error: err.message });
     }
 });
 
 // Get a single address book entry
 app.get('/address-book/:id', async (req, res) => {
-    const id = req.params.id;
     try {
-        const [results] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
-        if (results.length > 0) {
-            res.status(200).json(results[0]);
-        } 
-        else {
-            res.status(404).send('Address book entry not found');
-        }
-    } 
-    catch (err) {
-        console.error('Error retrieving address book entry: ', err);
-        res.status(500).send('Error retrieving address book entry');
+        const id = req.params.id;
+        const result = await contactService.getContactById(id);
+        res.json(result);
     }
-});
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+);
 
 // Update an address book entry
 app.put('/address-book/:id', contactValidationRules(), validate, async (req, res) => {
     const id = req.params.id;
     const { first_name, last_name, phone, email } = req.body;
-    
     try {
-        // Check if the contact exists
-        const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
-        if (existingContact[0].length === 0) {
-            // Not Found: Contact with this ID does not exist
-            return res.status(404).send('Address book entry not found');
-        }
-        if(existingContact[0].email !== email){
-            // Check if a contact with the same email already exists
-            const [existingEmail] = await connection.query('SELECT * FROM address_book WHERE email = ?', [email]);
-            if (existingEmail.length > 0) {
-                // Conflict: Contact with this email already exists
-                return res.status(409).send('A contact with the same email already exists.');
-            }
-        }
-
-        
-        // Update the contact
-        const query = 'UPDATE address_book SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE id = ?';
-        await connection.query(query, [first_name, last_name, phone, email, id]);
-        
-        res.status(200).send('Address book entry updated successfully');
-    } catch (err) {
-        console.error('Error updating address book entry: ', err);
-        res.status(500).send('Error updating address book entry');
+        const result = await contactService.updateContact(id, first_name, last_name, phone, email);
+        res.json(result);
     }
-}
-);
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Delete an address book entry
 app.delete('/address-book/:id', async (req, res) => {
     const id = req.params.id;
     try {
-        // Check if the contact exists
-        const [existingContact] = await connection.query('SELECT * FROM address_book WHERE id = ?', [id]);
-        if (existingContact[0].length === 0) {
-            // Not Found: Contact with this ID does not exist
-            return res.status(404).send('Address book entry not found');
-        }
-        const query = 'DELETE FROM address_book WHERE id = ?';
-        await connection.query(query, [id]);
-        res.status(200).send('Address book entry deleted successfully');
-    } catch (err) {
-        console.error('Error deleting address book entry: ', err);
-        res.status(500).send('Error deleting address book entry');
+        const result = await contactService.deleteContact(id);
+        res.json(result);
     }
-}
-);
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // Search in name and email
 app.get('/address-book/search/:search', async (req, res) => {
     const search = req.params.search;
     try {
-        const [results] = await connection.query('SELECT * FROM address_book WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?', [`%${search}%`, `%${search}%`, `%${search}%`]);
-        res.status(200).json(results);
-    } 
-    catch (err) {
-        console.error('Error searching address book entries: ', err);
-        res.status(500).send('Error searching address book entries');
+        const result = await contactService.searchContact(search);
+        res.json(result);
     }
-});
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+);
+
 
 // Start the server
+const port = 3000;
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     console.log(`http://localhost:${port}`);
