@@ -178,6 +178,7 @@ app.delete('/address-book/:id', async (req, res) => {
 }
 );
 
+// Search in name and email
 app.get('/address-book/search/:search', async (req, res) => {
     const search = req.params.search;
     try {

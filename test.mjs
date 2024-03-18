@@ -38,14 +38,86 @@ const validate = (req, res, next) => {
 };
 
 // Routes
+
+app.get('/', (req, res) => {
+    res.send('OK');
+}
+);
+
+// Create a new address book entry
 app.post('/address-book', contactValidationRules(), validate, async (req, res) => {
-    // Use contactService to handle the request
     const { first_name, last_name, phone, email } = req.body;
-    const result = await contactService.createContact(first_name, last_name, phone, email);
-    res.json(result);
+    try {
+        const result = await contactService.createContact(first_name, last_name, phone, email);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// More routes here...
+// Get all address book entries
+app.get('/address-book', async (req, res) => {
+    try {
+        const result = await contactService.getAllContacts();
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get a single address book entry
+app.get('/address-book/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const result = await contactService.getContactById(id);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+);
+
+// Update an address book entry
+app.put('/address-book/:id', contactValidationRules(), validate, async (req, res) => {
+    const id = req.params.id;
+    const { first_name, last_name, phone, email } = req.body;
+    try {
+        const result = await contactService.updateContact(id, first_name, last_name, phone, email);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete an address book entry
+app.delete('/address-book/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const result = await contactService.deleteContact(id);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Search in name and email
+app.get('/address-book/search/:search', async (req, res) => {
+    const search = req.params.search;
+    try {
+        const result = await contactService.searchContact(search);
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+}
+);
+
 
 // Start the server
 const port = 3000;
