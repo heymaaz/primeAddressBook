@@ -178,6 +178,18 @@ app.delete('/address-book/:id', async (req, res) => {
 }
 );
 
+app.get('/address-book/search/:search', async (req, res) => {
+    const search = req.params.search;
+    try {
+        const [results] = await connection.query('SELECT * FROM address_book WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?', [`%${search}%`, `%${search}%`, `%${search}%`]);
+        res.status(200).json(results);
+    } 
+    catch (err) {
+        console.error('Error searching address book entries: ', err);
+        res.status(500).send('Error searching address book entries');
+    }
+});
+
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
