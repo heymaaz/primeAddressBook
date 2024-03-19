@@ -59,6 +59,10 @@ Add a basic UI to interact with your API and allow the user to list, search, vie
 
 ## Implementation
 - Clone the MySQL database using the database dump: [sqlDump](dump/PrimeAddressBook.sql)
+- get node modules
+``` sh
+    npm install
+```
 - Start the server
 ``` sh
     npm start
