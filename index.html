@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script><!--Importing Vue.js 3 -->
+    <title>Prime Address Book</title>
+</head>
+<body>
+    <div id="app"><!--Creating the vue app -->
+        <header><!--Header of the page -->
+            <h1>{{sitename}}</h1><!--Title of the page -->
+            <label for="search">Search</label><!--Search input -->
+            <input type="text" v-model="searchTerm" placeholder="Search">
+            <br>
+            <button @click="this.addContactFlag=!this.addContactFlag">Add Contanct</button>
+            <div v-if="this.addContactFlag">
+                <label for="first_name">First Name</label>
+                <input type="text" v-model="first_name" placeholder="First Name">
+                <br>
+                <label for="last_name">Last Name</label>
+                <input type="text" v-model="last_name" placeholder="Last Name">
+                <br>
+                <label for="email">Email</label>
+                <input type="text" v-model="email" placeholder="Email">
+                <br>
+                <label for="phone">Phone</label>
+                <input type="text" v-model="phone" placeholder="Phone">
+                <br>
+                <button @click="addContact(first_name, last_name, email, phone)">Add</button>
+                <button @click="this.addContactFlag=!this.addContactFlag">Cancel</button>
+            </div>
+        </header>
+        <br>
+        <main>
+            <div v-for="contact in contacts">
+                <div class="contact" v-if="this.updateID!=contact.id">
+                    <h2>{{contact.first_name}} {{contact.last_name}}</h2>
+                    <p>{{contact.email}}</p>
+                    <p>{{contact.phone}}</p>
+                    <button @click="deleteContact(contact.id)">Delete</button>
+                    <button @click="this.updateID=contact.id">Update</button>
+                </div>
+                <div class="contact" v-else>
+                    <label for="first_name">First Name</label>
+                    <input type="text" v-model="contact.first_name" placeholder="First Name">
+                    <br>
+                    <label for="last_name">Last Name</label>
+                    <input type="text" v-model="contact.last_name" placeholder="Last Name">
+                    <br>
+                    <label for="email">Email</label>
+                    <input type="text" v-model="contact.email" placeholder="Email">
+                    <br>
+                    <label for="phone">Phone</label>
+                    <input type="text" v-model="contact.phone" placeholder="Phone">
+                    <br>
+                    <button @click="updateContact(contact.id, contact.first_name, contact.last_name, contact.email, contact.phone)">Save</button>
+                    <button @click="this.updateID=-1">Cancel</button>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+<script>
+    const api_url = 'http://localhost:3000/';//URL for the api
+    //Creating the vue app
+    const app = Vue.createApp({
+        data() {
+            return {
+                sitename: 'Prime Address Book',//Title of the page
+                contacts: [],//Array to store the contacts
+                updateID: -1,
+                searchTerm: '',
+                addContactFlag: false,
+                first_name: '',
+                last_name: '',
+                email: '',
+                phone: '',
+            }
+        },
+        mounted() {
+            //Fetching the contacts from the api
+            fetch(api_url + 'search')
+            .then(response => response.json())
+            .then(data => {
+                this.contacts = data;
+            });
+        },
+        methods: {
+            //Function to add a contact
+            addContact(first_name, last_name, email, phone) {
+                fetch(api_url + 'add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: first_name,
+                        last_name: last_name,
+                        email: email,
+                        phone: phone
+                    })
+                })
+                .then(response => {
+                    if(response.status === 200) {
+                        location.reload();
+                    } else {
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    if(data) {
+                        if(data.errors)
+                            alert(JSON.stringify(data.errors[0].msg));
+                        else
+                            alert(JSON.stringify(data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+            },
+
+            //Function to delete a contact
+            deleteContact(id) {
+                fetch(api_url + 'delete/' + id, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if(response.status === 200) {
+                        location.reload();
+                    } else {
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    if(data) {
+                        alert(JSON.stringify(data.error));
+                    }
+                });
+            },
+            //Function to update a contact
+            updateContact(id, first_name, last_name, email, phone) {
+                fetch(api_url + 'update/' + id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: first_name,
+                        last_name: last_name,
+                        email: email,
+                        phone: phone
+                    })
+                })
+                .then(response => {
+                    if(response.status === 200) {
+                        location.reload();
+                    } else {
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    if(data) {
+                        if(data.errors)
+                            alert(JSON.stringify(data.errors[0].msg));
+                        else
+                            alert(JSON.stringify(data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+            },
+
+            //Function to search for a contact
+            searchContact() {
+                fetch(api_url + 'search/' + this.searchTerm)
+                .then(response => response.json())
+                .then(data => {
+                    this.contacts = data;
+                });
+            },
+
+            //Debouncing the search
+            debounceSearch() {
+                if (this.debounce) clearTimeout(this.debounce);
+                this.debounce = setTimeout(() => {
+                    this.searchContact();
+                }, 300); // Adjust 300 to the desired debounce time in milliseconds
+            },
+
+        },
+        watch: {
+            searchTerm: function(newQuery, oldQuery) {
+                if (newQuery !== oldQuery) {
+                    this.debounceSearch();
+                }
+            },
+            addContactFlag:{
+                handler: function(newFlag, oldFlag) {
+                    if(newFlag) {
+                        this.first_name = '';
+                        this.last_name = '';
+                        this.email = '';
+                        this.phone = '';
+                    }
+                }
+            }
+        },
+    });
+    //Mounting the app
+    app.mount('#app');
+</script>
+</html>

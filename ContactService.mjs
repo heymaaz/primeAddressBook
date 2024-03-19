@@ -50,6 +50,9 @@ export class ContactService {
     }
 
     async searchContact(searchTerm) {
+        if (!searchTerm) {
+            throw new Error('Search term is required');
+        }
         const query = 'SELECT * FROM address_book WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?';
         const [rows] = await this.db.query(query, [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]);
         return rows;

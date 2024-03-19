@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { body, validationResult } from 'express-validator';
 import { Database } from './Database.mjs'; // Import the Database class
 import { ContactService } from './ContactService.mjs'; // Import the ContactService class
@@ -6,6 +7,7 @@ import { ContactService } from './ContactService.mjs'; // Import the ContactServ
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
 const db = new Database();
 await db.connect();
@@ -37,7 +39,12 @@ const validate = (req, res, next) => {
     next();
 };
 
-// Routes
+//log all the requests
+app.use((req, res, next) => {
+    //log the time in iso format
+    console.log(new Date().toISOString()+": "+req.method+" request at " + req.url);
+    next();
+});
 
 app.get('/', (req, res) => {
     res.send('OK');
@@ -45,21 +52,10 @@ app.get('/', (req, res) => {
 );
 
 // Create a new address book entry
-app.post('/address-book', contactValidationRules(), validate, async (req, res) => {
+app.post('/add', contactValidationRules(), validate, async (req, res) => {
     const { first_name, last_name, phone, email } = req.body;
     try {
         const result = await contactService.createContact(first_name, last_name, phone, email);
-        res.json(result);
-    }
-    catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Get all address book entries
-app.get('/address-book', async (req, res) => {
-    try {
-        const result = await contactService.getAllContacts();
         res.json(result);
     }
     catch (err) {
@@ -81,7 +77,7 @@ app.get('/address-book/:id', async (req, res) => {
 );
 
 // Update an address book entry
-app.put('/address-book/:id', contactValidationRules(), validate, async (req, res) => {
+app.put('/update/:id', contactValidationRules(), validate, async (req, res) => {
     const id = req.params.id;
     const { first_name, last_name, phone, email } = req.body;
     try {
@@ -94,7 +90,7 @@ app.put('/address-book/:id', contactValidationRules(), validate, async (req, res
 });
 
 // Delete an address book entry
-app.delete('/address-book/:id', async (req, res) => {
+app.delete('/delete/:id', async (req, res) => {
     const id = req.params.id;
     try {
         const result = await contactService.deleteContact(id);
@@ -105,8 +101,19 @@ app.delete('/address-book/:id', async (req, res) => {
     }
 });
 
+// Get all contacts
+app.get('/search/', async (req, res) => {
+    try {
+        const result = await contactService.getAllContacts();
+        res.json(result);
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Search in name and email
-app.get('/address-book/search/:search', async (req, res) => {
+app.get('/search/:search', async (req, res) => {
     const search = req.params.search;
     try {
         const result = await contactService.searchContact(search);
