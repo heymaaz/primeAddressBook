@@ -114,12 +114,14 @@ app.get('/search/', async (req, res) => {
 
 // Search in name and email
 app.get('/search/:search', async (req, res) => {
-    const search = req.params.search;
+    const search = decodeURIComponent(req.params.search);
+    
     try {
         const result = await contactService.searchContact(search);
         res.json(result);
     }
     catch (err) {
+        console.error(err);
         res.status(500).json({ error: err.message });
     }
 }

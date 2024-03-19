@@ -43,18 +43,18 @@
                 </div>
                 <div class="contact" v-else>
                     <label for="first_name">First Name</label>
-                    <input type="text" v-model="contact.first_name" placeholder="First Name">
+                    <input type="text" v-model="updateFirst_name" placeholder="First Name">
                     <br>
                     <label for="last_name">Last Name</label>
-                    <input type="text" v-model="contact.last_name" placeholder="Last Name">
+                    <input type="text" v-model="updateLast_name" placeholder="Last Name">
                     <br>
                     <label for="email">Email</label>
-                    <input type="text" v-model="contact.email" placeholder="Email">
+                    <input type="text" v-model="updateEmail" placeholder="Email">
                     <br>
                     <label for="phone">Phone</label>
-                    <input type="text" v-model="contact.phone" placeholder="Phone">
+                    <input type="text" v-model="updatePhone" placeholder="Phone">
                     <br>
-                    <button @click="updateContact(contact.id, contact.first_name, contact.last_name, contact.email, contact.phone)">Save</button>
+                    <button @click="updateContact(contact.id, updateFirst_name, updateLast_name, updateEmail, updatePhone)">Save</button>
                     <button @click="this.updateID=-1">Cancel</button>
                 </div>
             </div>
@@ -76,6 +76,10 @@
                 last_name: '',
                 email: '',
                 phone: '',
+                updateFirst_name: '',
+                updateLast_name: '',
+                updateEmail: '',
+                updatePhone: '',
             }
         },
         mounted() {
@@ -111,16 +115,16 @@
                 .then(data => {
                     if(data) {
                         if(data.errors)
-                            alert(JSON.stringify(data.errors[0].msg));
+                        alert(JSON.stringify(data.errors[0].msg));
                         else
-                            alert(JSON.stringify(data.error));
+                        alert(JSON.stringify(data.error));
                     }
                 })
                 .catch(error => {
                     console.error(error);
                 });
             },
-
+            
             //Function to delete a contact
             deleteContact(id) {
                 fetch(api_url + 'delete/' + id, {
@@ -163,25 +167,28 @@
                 .then(data => {
                     if(data) {
                         if(data.errors)
-                            alert(JSON.stringify(data.errors[0].msg));
+                        alert(JSON.stringify(data.errors[0].msg));
                         else
-                            alert(JSON.stringify(data.error));
+                        alert(JSON.stringify(data.error));
                     }
                 })
                 .catch(error => {
                     console.error(error);
                 });
             },
-
+            
             //Function to search for a contact
             searchContact() {
                 fetch(api_url + 'search/' + this.searchTerm)
                 .then(response => response.json())
                 .then(data => {
+                    if(data.error)
+                    alert(JSON.stringify(data.error));
+                    else
                     this.contacts = data;
                 });
             },
-
+            
             //Debouncing the search
             debounceSearch() {
                 if (this.debounce) clearTimeout(this.debounce);
@@ -189,7 +196,7 @@
                     this.searchContact();
                 }, 300); // Adjust 300 to the desired debounce time in milliseconds
             },
-
+            
         },
         watch: {
             searchTerm: function(newQuery, oldQuery) {
@@ -204,6 +211,25 @@
                         this.last_name = '';
                         this.email = '';
                         this.phone = '';
+                    }
+                }
+            },
+            updateID:{
+                handler: function(newID, oldID) {
+                    //Matching the contact to be updated using the id
+                    const contact = this.contacts.find(contact => contact.id === newID);
+                    
+                    if(newID==-1 || !contact) {
+                        this.updateFirst_name = '';
+                        this.updateLast_name = '';
+                        this.updateEmail = '';
+                        this.updatePhone = '';
+                    }
+                    else{
+                        this.updateFirst_name = contact.first_name;
+                        this.updateLast_name = contact.last_name;
+                        this.updateEmail = contact.email;
+                        this.updatePhone = contact.phone;
                     }
                 }
             }

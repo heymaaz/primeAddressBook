@@ -24,6 +24,10 @@ export class ContactService {
     }
 
     async getContactById(id) {
+        //sanitize the input
+        if (isNaN(id)) {
+            throw new Error('Invalid input for id. Please provide a number.');
+        }
         const [results] = await this.db.query('SELECT * FROM address_book WHERE id = ?', [id]);
         if (results.length > 0) {
             return results[0];
@@ -32,6 +36,18 @@ export class ContactService {
     }
 
     async updateContact(id, first_name, last_name, phone, email) {
+        //sanitize the input
+        if (isNaN(id)) {
+            throw new Error('Invalid input for id. Please provide a number.');
+        }
+        //check if previous email is the same as the new email
+        const contact = await this.getContactById(id);
+        if (contact.email !== email) {
+            const existingContact = await this.findContactByEmail(email);
+            if (existingContact.length > 0) {
+                throw new Error('A contact with the same email already exists.');
+            }
+        }
         const query = 'UPDATE address_book SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE id = ?';
         const [result] = await this.db.query(query, [first_name, last_name, phone, email, id]);
         if (result.affectedRows > 0) {
@@ -41,6 +57,10 @@ export class ContactService {
     }
 
     async deleteContact(id) {
+        //sanitize the input
+        if (isNaN(id)) {
+            throw new Error('Invalid input for id. Please provide a number.');
+        }
         const query = 'DELETE FROM address_book WHERE id = ?';
         const [result] = await this.db.query(query, [id]);
         if (result.affectedRows > 0) {
@@ -48,8 +68,10 @@ export class ContactService {
         }
         throw new Error('Address book entry not found');
     }
-
+    
     async searchContact(searchTerm) {
+        //sanitize the input
+        searchTerm = searchTerm.replace(/[^a-zA-Z0-9 ]/g, '');
         if (!searchTerm) {
             throw new Error('Search term is required');
         }
